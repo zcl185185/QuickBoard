@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>速查板</title>
+<style>
+  :root {
+    --bg: #f3f5f9; --card: #ffffff; --text: #1f2430; --muted: #7a8194;
+    --border: #e3e6ee; --accent: #2563eb; --accent-soft: #eaf0ff;
+    --danger: #dc2626; --shadow: 0 1px 3px rgba(20,30,60,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --text: #e8eaf0; --muted: #8b93a7;
+      --border: #2a3140; --accent: #6b9bff; --accent-soft: #1d2a45;
+      --danger: #f87171; --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; font-size: 14px;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; display: flex; align-items: center;
+    gap: 10px; padding: 12px 20px; background: var(--bg);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; white-space: nowrap; }
+  #search {
+    flex: 1; min-width: 180px; max-width: 420px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+    color: var(--text); font-size: 14px; outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  header .spacer { flex: 1; }
+  button {
+    font: inherit; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.1); color: #fff; }
+  button.icon { padding: 6px 10px; }
+
+  main {
+    display: flex; gap: 16px; padding: 20px; max-width: 1750px;
+    margin: 0 auto; align-items: flex-start;
+  }
+  main .col { flex: 1 1 0; min-width: 0; }
+  main.many .col { flex: 0 0 340px; }
+  main.many .col.ghost { flex: 0 0 46px; }
+  .col h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0 0 10px; }
+  .col h2 .count {
+    font-size: 12px; color: var(--muted); background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; padding: 0 8px; line-height: 18px;
+  }
+  .col h2 .add {
+    width: 24px; height: 24px; padding: 0; line-height: 1; border-radius: 6px;
+    font-size: 16px; color: var(--muted);
+  }
+  .col.ghost {
+    flex: 0 0 46px; min-height: 120px; border: 1px dashed var(--border); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    color: var(--muted); font-size: 20px; align-self: stretch;
+  }
+  .col.ghost:hover { color: var(--accent); border-color: var(--accent); }
+
+  .cards { display: flex; flex-direction: column; gap: 10px; padding: 2px; }
+  .colbody { max-height: calc(100vh - 200px); overflow-y: auto; padding: 2px; }
+  .empty { color: var(--muted); padding: 14px; text-align: center; border: 1px dashed var(--border); border-radius: 10px; }
+
+  .foldhead {
+    display: flex; align-items: center; gap: 6px; margin: 10px 0 8px; cursor: pointer;
+    font-weight: 600; font-size: 13.5px; color: var(--muted); user-select: none;
+  }
+  .foldhead .chev { display: inline-block; width: 14px; transition: transform .15s; }
+  .foldhead.closed .chev { transform: rotate(-90deg); }
+  .foldhead .fname { color: var(--text); }
+  .foldhead .fcount { font-size: 12px; font-weight: 400; }
+  .foldhead .fops { margin-left: auto; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+  .foldhead:hover .fops { opacity: 1; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; box-shadow: var(--shadow);
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .card.cmd { border-left: 3px solid var(--accent); }
+  .card .av { width: 30px; height: 30px; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 700;
+              display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card .meta { flex: 1; min-width: 0; }
+  .card .top { display: flex; align-items: flex-start; gap: 8px; }
+  .card .title { font-weight: 600; word-break: break-all; }
+  .card .title a { color: var(--text); text-decoration: none; }
+  .card .title a:hover { color: var(--accent); }
+  .card .ops { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; opacity: .25; transition: opacity .15s; }
+  .card:hover .ops, .card:focus-within .ops { opacity: 1; }
+  .card .ops button { padding: 2px 8px; font-size: 12px; border-radius: 6px; }
+  .card .ops .copy { color: var(--accent); border-color: var(--accent-soft); background: var(--accent-soft); }
+  .card .ops .ok { color: #16a34a; background: #e8f7ee; border-color: #bfe8cd; }
+  .card .ops .del { color: var(--danger); }
+  .card .body { margin-top: 6px; white-space: pre-wrap; word-break: break-all; color: var(--text); line-height: 1.55; }
+  .card .body.urlone { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card.cmd .body { font-family: Consolas, "Courier New", monospace; font-size: 12.5px; }
+  .card .body a { color: var(--accent); word-break: break-all; }
+  .hint { color: var(--muted); text-align: center; padding: 6px 20px 24px; font-size: 12.5px; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,14,22,.45); z-index: 50;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    width: 100%; padding: 18px; display: flex; flex-direction: column; gap: 10px;
+    max-height: 86vh; overflow-y: auto;
+  }
+  #editor { max-width: 560px; }
+  #settings { max-width: 620px; }
+  .panel h3 { margin: 0 0 4px; font-size: 16px; }
+  .panel input, .panel select, .panel textarea {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); outline: none; width: 100%;
+  }
+  .panel textarea { min-height: 130px; resize: vertical; }
+  .panel input:focus, .panel textarea:focus { border-color: var(--accent); }
+  .panel .row { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+  .panel .row .left { margin-right: auto; color: var(--danger); }
+  .panel section { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .panel section h4 { margin: 0; font-size: 13.5px; color: var(--muted); font-weight: 600; }
+  .panel .tip { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .colrow { display: flex; gap: 8px; align-items: center; }
+  .colrow input { flex: 1; }
+  .colrow .cn { flex-shrink: 0; width: 56px; font-size: 12px; color: var(--muted); text-align: right; }
+  .colrow button { flex-shrink: 0; }
+  label.toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  label.toggle input { width: auto; }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 99;
+  }
+  .toast.show { opacity: .95; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📌 速查板</h1>
+  <input id="search" type="search" placeholder="搜索（按 / 聚焦，Esc 清空）" autocomplete="off">
+  <span class="spacer"></span>
+  <button id="btnAdd">＋ 添加卡片</button>
+  <button id="btnSettings" class="icon" title="设置">⚙</button>
+</header>
+
+<main id="cols"></main>
+
+<div class="hint">网址点击直达 · 复制/编辑在悬停时出现 · 文件夹点击标题折叠 · 栏目与设置在 ⚙ 里管理 · 修改自动保存</div>
+
+<datalist id="folderList"></datalist>
+
+<!-- 卡片编辑弹层 -->
+<div class="overlay" id="overlay">
+  <div class="panel" id="editor">
+    <h3 id="editorTitle">添加卡片</h3>
+    <select id="fCol"></select>
+    <input id="fFolder" list="folderList" placeholder="分组（可选）：输入或选择文件夹，留空直接放在栏目顶部">
+    <input id="fTitle" placeholder="标题（如：阿里云控制台）">
+    <textarea id="fBody" placeholder="内容。网址会自动变成可点击链接；命令粘贴进来后用「复制」按钮一键复制。"></textarea>
+    <div class="row">
+      <button class="left" id="btnDelete">删除</button>
+      <button id="btnCancel">取消</button>
+      <button class="primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹层 -->
+<div class="overlay" id="overlay2">
+  <div class="panel" id="settings">
+    <h3>⚙ 设置</h3>
+
+    <section>
+      <h4>栏目管理（栏目内可建文件夹归类）</h4>
+      <div id="colList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div class="row" style="justify-content:flex-start;">
+        <input id="newCol" placeholder="新栏目名称" style="flex:1;">
+        <button id="btnAddCol">＋ 添加栏目</button>
+      </div>
+    </section>
+
+    <section>
+      <h4>呼出快捷键</h4>
+      <div class="row" style="justify-content:flex-start;">
+        <span class="tip" style="flex-shrink:0;">当前生效：</span><b id="hkCur" style="flex-shrink:0;"></b>
+      </div>
+      <div class="row" style="justify-content:flex-start;">
+        <input id="hkCap" readonly placeholder="点击此处，然后直接按下想要的组合键" style="flex:1;cursor:pointer;">
+        <button id="btnHk" class="primary">应用</button>
+      </div>
+      <div class="tip">建议包含 Ctrl 或 Alt，避免与日常打字冲突；也可在托盘右键菜单修改。</div>
+    </section>
+
+    <section>
+      <h4>窗口行为</h4>
+      <label class="toggle"><input type="checkbox" id="tgTop"> 窗口置顶（呼出时悬浮在所有程序上方）</label>
+      <label class="toggle"><input type="checkbox" id="tgBlur"> 失焦自动隐藏（点击窗口外自动收起）</label>
+    </section>
+
+    <section>
+      <h4>数据备份</h4>
+      <div class="row" style="justify-content:flex-start;">
+        <button id="btnExport2">导出备份</button>
+        <button id="btnImport2">导入备份</button>
+      </div>
+      <div class="tip">换电脑前先导出；导入会覆盖当前全部内容。旧的浏览器版备份文件也能导入。</div>
+    </section>
+
+    <section>
+      <h4>浏览器书签同步（Edge / Chrome）</h4>
+      <label class="toggle"><input type="checkbox" id="tgBm"> 自动同步浏览器书签（收藏后几秒内自动进入「常用网址」）</label>
+      <label class="toggle"><input type="checkbox" id="tgBmOther"> 包含“其他书签”（默认只同步收藏夹栏及其子文件夹）</label>
+      <div class="row" style="justify-content:flex-start;">
+        <span class="tip" id="bmStatus" style="flex:1;">尚未同步</span>
+        <button id="btnBmSync">立即同步</button>
+      </div>
+      <div class="tip">以浏览器收藏夹为准：浏览器里删掉的书签，下次同步会一并移除；同步来的卡片改名 / 移动分组会被浏览器内容覆盖。不想显示某条，请在浏览器里删除该书签。</div>
+    </section>
+
+    <div class="row"><button id="btnSetClose">关闭</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ============ 数据层 v3：数据由宿主程序(C#)保存，页面通过消息桥读写 ============ */
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(36).slice(2));
+
+function seed() {
+  return {
+    cols: [
+      { id: 'url',    name: '常用网址' },
+      { id: 'prompt', name: '提示词 / Skill' },
+      { id: 'aliyun', name: '命令操作' },
+    ],
+    cards: [
+      { id: uid(), colId: 'url',    folder: '', title: '阿里云 ECS 控制台', body: 'https://ecs.console.aliyun.com' },
+      { id: uid(), colId: 'url',    folder: '', title: 'GitHub', body: 'https://github.com' },
+      { id: uid(), colId: 'prompt', folder: '', title: '报错分析', body: '以下是报错信息，请分析原因并给出解决步骤：\n\n[粘贴报错]' },
+      { id: uid(), colId: 'prompt', folder: '', title: '代码审查', body: '请审查以下代码，从安全漏洞、性能、可读性三个角度给出改进建议：\n\n[粘贴代码]' },
+      { id: uid(), colId: 'aliyun', folder: '', title: 'SSH 登录服务器', body: 'ssh root@你的服务器IP' },
+      { id: uid(), colId: 'aliyun', folder: '', title: '查看端口占用', body: 'netstat -tunlp | grep :80' },
+    ]
+  };
+}
+function migrateV1(old) {   // 兼容旧浏览器版备份（纯数组格式）
+  const defs = [['url', '常用网址'], ['prompt', '提示词 / Skill'], ['aliyun', '命令操作']];
+  const cats = defs.map(([col, name]) => ({ id: 'c' + uid(), name }));
+  const idOf = {}; defs.forEach(([col], i) => idOf[col] = cats[i].id);
+  return {
+    cols: cats,
+    cards: (Array.isArray(old) ? old : []).map(c => ({
+      id: c.id || uid(), colId: idOf[c.col] || cats[0].id, folder: '',
+      title: String(c.title || '未命名'), body: String(c.body || '')
+    }))
+  };
+}
+
+let state = null;
+let cfg = { hotkey: '!q', onTop: 1, blur: 1, fold: {}, bmSync: { enabled: 1, includeOther: 0, urls: [] } };
+
+const bridge = () => (window.chrome && window.chrome.webview) ? window.chrome.webview : null;
+function sendCmd(type, payload) {
+  const b = bridge();
+  if (b) b.postMessage(JSON.stringify(payload === undefined ? { type } : { type, payload }));
+}
+function postSave() { if (state) sendCmd('save', { state, cfg }); }
+
+// 接收宿主推来的完整数据（init / data-updated 共用），并补齐缺省字段
+function adoptData(data) {
+  state = data.state;
+  cfg = Object.assign({ hotkey: '!q', onTop: 1, blur: 1, fold: {} }, data.cfg || {});
+  cfg.fold = cfg.fold || {};
+  cfg.bmSync = Object.assign({ enabled: 1, includeOther: 0, urls: [] }, cfg.bmSync || {});
+}
+
+bridge() && bridge().addEventListener('message', e => {
+  const m = e.data || {};
+  if (m.type === 'init') {
+    if (m.data && m.data.state && Array.isArray(m.data.state.cols)) {
+      adoptData(m.data);
+    } else {
+      state = seed();
+      postSave();           // 首次启动：把默认示例写回数据文件
+    }
+    if (!state.cols.length) state = seed();
+    render(); renderSettings();
+  } else if (m.type === 'data-updated') {
+    // 宿主（书签同步引擎）改了数据文件，整体替换内存数据，避免下次 save 把同步结果覆盖掉
+    if (m.data && m.data.state && Array.isArray(m.data.state.cols)) {
+      adoptData(m.data);
+      render(); renderSettings();
+      if (m.summary) toast(m.summary);
+    }
+    bmSyncDone();
+  } else if (m.type === 'bm-status') {
+    if (m.lastSync) {
+      cfg.bmSync = Object.assign({ enabled: 1, includeOther: 0, urls: [] }, cfg.bmSync || {});
+      cfg.bmSync.lastSync = m.lastSync; cfg.bmSync.count = m.count || 0;
+    }
+    bmSyncDone();
+  } else if (m.type === 'cfg-sync') {
+    if (m.cfg) {
+      if (m.revert) toast('快捷键无效，已还原为 ' + prettyHk(m.cfg.hotkey));
+      cfg.hotkey = m.cfg.hotkey; cfg.onTop = m.cfg.onTop ? 1 : 0; cfg.blur = m.cfg.blur ? 1 : 0;
+      renderSettings();
+    }
+  } else if (m.type === 'import-file') {
+    try {
+      const d = JSON.parse(m.text);
+      if (d && d.state && Array.isArray(d.state.cols) && Array.isArray(d.state.cards)) {
+        state = d.state;                                    // 新版 v3：{state, cfg}
+        if (d.cfg) cfg = Object.assign(cfg, d.cfg);
+      } else if (d && Array.isArray(d.cols) && Array.isArray(d.cards)) {
+        state = { cols: d.cols, cards: d.cards };           // 旧浏览器版 v2 备份
+      } else if (Array.isArray(d)) {
+        state = migrateV1(d);                               // 更早的 v1 数组备份
+      } else throw 0;
+      cfg.fold = cfg.fold || {};
+      save(); render(); renderSettings(); toast('导入成功');
+    } catch (err) { toast('文件格式无法识别'); }
+  } else if (m.type === 'open-settings') {
+    openSettings(false);
+  } else if (m.type === 'exported') {
+    toast(m.ok ? '备份已导出' : '已取消导出');
+  }
+});
+
+function save() { if (state) postSave(); }
+function saveFold() { postSave(); }
+
+/* ================= 工具 ================= */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+function bodyNodes(text) {
+  const frag = document.createDocumentFragment();
+  const re = /(https?:\/\/[^\s<>"')\]，。；]+)/g;
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    const a = document.createElement('a');
+    a.href = m[0]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = m[0];
+    frag.appendChild(a);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+  return frag;
+}
+
+/* ================= 渲染 ================= */
+function colCards(colId, q) {
+  return state.cards.filter(c => c.colId === colId)
+    .filter(c => !q || (c.title + '\n' + c.body + '\n' + (c.folder || '')).toLowerCase().includes(q));
+}
+function colFolders(colId) {
+  const seen = [], set = new Set();
+  for (const c of state.cards) {
+    if (c.colId === colId && c.folder && !set.has(c.folder)) { set.add(c.folder); seen.push(c.folder); }
+  }
+  return seen;
+}
+
+function render() {
+  if (!state) return;
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const main = document.getElementById('cols');
+  main.innerHTML = '';
+  main.classList.toggle('many', state.cols.length > 3);
+
+  for (const col of state.cols) {
+    const colEl = document.createElement('section');
+    colEl.className = 'col'; colEl.dataset.col = col.id;
+    const list = colCards(col.id, q);
+
+    const h2 = document.createElement('h2');
+    const nm = document.createElement('span'); nm.textContent = col.name;
+    const ct = document.createElement('span'); ct.className = 'count'; ct.textContent = list.length;
+    const add = document.createElement('button'); add.className = 'add'; add.textContent = '＋';
+    add.title = '在「' + col.name + '」添加卡片';
+    add.addEventListener('click', () => openEditor(null, col.id));
+    h2.append(nm, ct, add);
+    colEl.appendChild(h2);
+
+    const body = document.createElement('div'); body.className = 'colbody';
+    const boxes = [];
+
+    const mkCardsBox = () => { const d = document.createElement('div'); d.className = 'cards'; boxes.push(d); return d; };
+
+    const loose = list.filter(c => !c.folder);
+    if (loose.length || (!q && !colFolders(col.id).length)) {
+      const box = mkCardsBox();
+      if (!loose.length) {
+        const d = document.createElement('div'); d.className = 'empty';
+        d.textContent = q ? '没有匹配的卡片' : '暂无卡片，点右上角 ＋ 添加';
+        box.appendChild(d);
+      }
+      for (const c of loose) box.appendChild(cardEl(c));
+    }
+
+    for (const fname of colFolders(col.id)) {
+      const fcards = list.filter(c => c.folder === fname);
+      if (q && !fcards.length) continue;
+      const fkey = col.id + '|' + fname;
+      const collapsed = q ? false : !!(cfg.fold && cfg.fold[fkey]);
+
+      const head = document.createElement('div');
+      head.className = 'foldhead' + (collapsed ? ' closed' : '');
+      head.dataset.folder = fname; head.dataset.col = col.id;
+      const chev = document.createElement('span'); chev.className = 'chev'; chev.textContent = '▾';
+      const fnm = document.createElement('span'); fnm.className = 'fname'; fnm.textContent = '📁 ' + fname;
+      const fct = document.createElement('span'); fct.className = 'fcount'; fct.textContent = fcards.length;
+      const fops = document.createElement('span'); fops.className = 'fops';
+      const br = document.createElement('button'); br.className = 'mini'; br.dataset.act = 'frename';
+      br.title = '重命名文件夹'; br.textContent = '改名';
+      const bd = document.createElement('button'); bd.className = 'mini del'; bd.dataset.act = 'fdel';
+      bd.title = '删除文件夹（卡片变为未分组）'; bd.textContent = '删除';
+      fops.append(br, bd);
+      head.append(chev, fnm, fct, fops);
+      body.appendChild(head);
+
+      const box = mkCardsBox();
+      if (collapsed) box.style.display = 'none';
+      for (const c of fcards) box.appendChild(cardEl(c));
+    }
+
+    for (const b of boxes) body.appendChild(b);
+    colEl.appendChild(body);
+    main.appendChild(colEl);
+  }
+
+  const ghost = document.createElement('div');
+  ghost.className = 'col ghost'; ghost.textContent = '＋'; ghost.title = '添加栏目（也可在 ⚙ 设置里管理）';
+  ghost.addEventListener('click', () => openSettings(true));
+  main.appendChild(ghost);
+}
+
+function cardEl(c) {
+  const el = document.createElement('div');
+  el.className = 'card'; el.dataset.id = c.id;
+
+  const top = document.createElement('div'); top.className = 'top';
+  const title = document.createElement('div'); title.className = 'title';
+  const url = (c.body.match(/https?:\/\/[^\s<>"')\]，。；]+/) || [])[0];
+  // 整个内容就是一个网址时，用完整内容当链接（显示正则会在括号等字符处截断，导致长网址链接不完整）
+  const linkUrl = /^https?:\/\/\S+$/i.test(c.body.trim()) ? c.body.trim() : url;
+  if (linkUrl) {
+    const a = document.createElement('a');
+    a.href = linkUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = c.title;
+    title.appendChild(a);
+  } else {
+    el.classList.add('cmd');
+    title.textContent = c.title;
+  }
+
+  const ops = document.createElement('div'); ops.className = 'ops';
+  ops.innerHTML =
+    `<button class="copy" data-act="copy" title="复制全部内容">复制</button>` +
+    `<button data-act="edit" title="编辑">编辑</button>` +
+    `<button class="del" data-act="del" title="删除">删除</button>`;
+  top.append(title, ops);
+
+  const body = document.createElement('div'); body.className = 'body';
+  if (linkUrl && c.body.trim() === linkUrl) {
+    // 纯网址卡片：单行截断显示（省略号），悬停看完整网址；点击仍打开完整链接，复制的也是完整地址
+    body.classList.add('urlone');
+    body.title = c.body;
+    const a = document.createElement('a');
+    a.href = linkUrl; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = linkUrl.replace(/^https?:\/\//i, '');
+    body.appendChild(a);
+  } else {
+    body.appendChild(bodyNodes(c.body));
+  }
+
+  const meta = document.createElement('div'); meta.className = 'meta';
+  meta.append(top, body);
+
+  if (url) {
+    const av = document.createElement('div'); av.className = 'av';
+    const palette = ['#2563eb', '#ff6a00', '#16a34a', '#d946ef', '#f59e0b', '#0ea5e9', '#dc2626', '#0f172a'];
+    let hsh = 0;
+    for (const ch of c.title) hsh = (hsh + ch.charCodeAt(0)) % 997;
+    av.style.background = palette[hsh % palette.length];
+    av.textContent = (c.title.trim()[0] || '•').toUpperCase();
+    el.append(av, meta);
+  } else {
+    el.append(meta);
+  }
+  return el;
+}
+
+/* ================= 栏目/文件夹/卡片操作 ================= */
+document.getElementById('cols').addEventListener('click', e => {
+  const actBtn = e.target.closest('button[data-act]');
+  const head = e.target.closest('.foldhead');
+
+  if (actBtn && head) {
+    const colId = head.dataset.col, fname = head.dataset.folder;
+    if (actBtn.dataset.act === 'frename') {
+      const nn = (prompt('重命名文件夹：', fname) || '').trim();
+      if (!nn || nn === fname) return;
+      if (colFolders(colId).includes(nn)) { toast('该栏目下已有同名文件夹'); return; }
+      state.cards.forEach(c => { if (c.colId === colId && c.folder === fname) c.folder = nn; });
+      const fk = colId + '|' + fname;
+      if (cfg.fold && cfg.fold[fk] !== undefined) { cfg.fold[colId + '|' + nn] = cfg.fold[fk]; delete cfg.fold[fk]; }
+      save(); render(); return;
+    }
+    if (actBtn.dataset.act === 'fdel') {
+      const n = state.cards.filter(c => c.colId === colId && c.folder === fname).length;
+      if (!confirm(`删除文件夹「${fname}」？其中 ${n} 张卡片将变为未分组（不会被删除）。`)) return;
+      state.cards.forEach(c => { if (c.colId === colId && c.folder === fname) c.folder = ''; });
+      if (cfg.fold) delete cfg.fold[colId + '|' + fname];
+      save(); render(); toast('文件夹已删除');
+      return;
+    }
+  }
+
+  if (head && !actBtn) {
+    const fkey = head.dataset.col + '|' + head.dataset.folder;
+    if (!cfg.fold) cfg.fold = {};
+    cfg.fold[fkey] = !cfg.fold[fkey];
+    save(); render(); return;
+  }
+
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const card = btn.closest('.card');
+  const c = state.cards.find(x => x.id === card.dataset.id);
+  if (!c) return;
+  if (btn.dataset.act === 'copy') {
+    copyText(c.body);
+    btn.textContent = '✓ 已复制'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('ok'); }, 1200);
+  }
+  if (btn.dataset.act === 'edit') openEditor(c);
+  if (btn.dataset.act === 'del') {
+    if (confirm(`删除卡片「${c.title}」？`)) {
+      state.cards = state.cards.filter(x => x.id !== c.id);
+      save(); render();
+    }
+  }
+});
+
+function copyText(text) {
+  const done = () => toast('已复制到剪贴板');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallback());
+  } else fallback();
+  function fallback() {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { toast('复制失败，请手动选择文本'); }
+    ta.remove();
+  }
+}
+
+/* ================= 卡片编辑 ================= */
+let editingId = null;
+function refreshFolderList(colId) {
+  const dl = document.getElementById('folderList');
+  dl.innerHTML = '';
+  for (const f of colFolders(colId)) {
+    const o = document.createElement('option'); o.value = f; dl.appendChild(o);
+  }
+}
+function openEditor(card, colId) {
+  if (!state) return;
+  editingId = card ? card.id : null;
+  const sel = document.getElementById('fCol');
+  sel.innerHTML = '';
+  for (const col of state.cols) {
+    const o = document.createElement('option');
+    o.value = col.id; o.textContent = col.name;
+    sel.appendChild(o);
+  }
+  sel.value = card ? card.colId : (colId || (state.cols[0] && state.cols[0].id));
+  refreshFolderList(sel.value);
+  document.getElementById('fFolder').value = card ? (card.folder || '') : '';
+  document.getElementById('editorTitle').textContent = card ? '编辑卡片' : '添加卡片';
+  document.getElementById('fTitle').value = card ? card.title : '';
+  document.getElementById('fBody').value = card ? card.body : '';
+  document.getElementById('btnDelete').style.display = card ? '' : 'none';
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('fTitle').focus();
+}
+function closeEditor() { document.getElementById('overlay').classList.remove('open'); }
+
+document.getElementById('fCol').addEventListener('change', e => {
+  refreshFolderList(e.target.value);
+  document.getElementById('fFolder').value = '';
+});
+document.getElementById('btnSave').addEventListener('click', () => {
+  const colId = document.getElementById('fCol').value;
+  const folder = document.getElementById('fFolder').value.trim();
+  const title = document.getElementById('fTitle').value.trim() || '未命名';
+  const body = document.getElementById('fBody').value.trim();
+  if (!body) { toast('内容不能为空'); return; }
+  if (editingId) {
+    const c = state.cards.find(x => x.id === editingId);
+    if (c) Object.assign(c, { colId, folder, title, body });
+  } else
+    state.cards.push({ id: uid(), colId, folder, title, body });
+  save(); render(); closeEditor();
+});
+document.getElementById('btnDelete').addEventListener('click', () => {
+  const c = state.cards.find(x => x.id === editingId);
+  if (c && confirm(`删除卡片「${c.title}」？`)) {
+    state.cards = state.cards.filter(x => x.id !== editingId);
+    save(); render();
+  }
+  closeEditor();
+});
+document.getElementById('btnCancel').addEventListener('click', closeEditor);
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target.id === 'overlay') closeEditor();
+});
+
+/* ================= 设置面板 ================= */
+function openSettings(focusNewCol) {
+  if (!state) return;
+  document.getElementById('overlay2').classList.add('open');
+  renderSettings();
+  if (focusNewCol) document.getElementById('newCol').focus();
+}
+function closeSettings() { document.getElementById('overlay2').classList.remove('open'); }
+
+function renderSettings() {
+  if (!state) return;
+  const box = document.getElementById('colList');
+  box.innerHTML = '';
+  for (const col of state.cols) {
+    const row = document.createElement('div'); row.className = 'colrow';
+    const inp = document.createElement('input');
+    inp.value = col.name; inp.placeholder = '栏目名称';
+    inp.addEventListener('change', () => {
+      const v = inp.value.trim();
+      if (!v) { inp.value = col.name; return; }
+      col.name = v; save(); render(); toast('栏目已重命名');
+    });
+    const n = document.createElement('span'); n.className = 'cn';
+    n.textContent = state.cards.filter(c => c.colId === col.id).length + ' 张';
+    const del = document.createElement('button'); del.textContent = '删除';
+    del.addEventListener('click', () => {
+      if (state.cols.length <= 1) { toast('至少保留一个栏目'); return; }
+      const nCards = state.cards.filter(c => c.colId === col.id).length;
+      if (!confirm(`删除栏目「${col.name}」？其中 ${nCards} 张卡片将一并删除！`)) return;
+      state.cards = state.cards.filter(c => c.colId !== col.id);
+      state.cols = state.cols.filter(c => c.id !== col.id);
+      save(); render(); renderSettings(); toast('栏目已删除');
+    });
+    row.append(inp, n, del);
+    box.appendChild(row);
+  }
+  document.getElementById('hkCur').textContent = prettyHk(cfg.hotkey);
+  document.getElementById('tgTop').checked = !!cfg.onTop;
+  document.getElementById('tgBlur').checked = !!cfg.blur;
+  document.getElementById('tgBm').checked = !!(cfg.bmSync && cfg.bmSync.enabled);
+  document.getElementById('tgBmOther').checked = !!(cfg.bmSync && cfg.bmSync.includeOther);
+  renderBmStatus();
+}
+function renderBmStatus() {
+  const b = cfg.bmSync || {};
+  document.getElementById('bmStatus').textContent = b.lastSync
+    ? '上次同步 ' + b.lastSync + ' · 共 ' + (b.count || 0) + ' 条'
+    : '尚未同步';
+}
+function prettyHk(hk) {
+  const map = { '^': 'Ctrl+', '!': 'Alt+', '+': 'Shift+', '#': 'Win+' };
+  let out = '';
+  for (const ch of String(hk)) out += map[ch] || ch;
+  return out.replace(/Space$/i, '空格');
+}
+
+document.getElementById('btnAddCol').addEventListener('click', () => {
+  const inp = document.getElementById('newCol');
+  const name = inp.value.trim();
+  if (!name) { toast('先输入栏目名称'); return; }
+  state.cols.push({ id: uid(), name });
+  inp.value = '';
+  save(); render(); renderSettings(); toast('栏目已添加');
+});
+document.getElementById('newCol').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btnAddCol').click();
+});
+
+/* 快捷键：捕获组合键 → 宿主语法 */
+const hkMap = { ' ': 'Space', 'ArrowUp': 'Up', 'ArrowDown': 'Down', 'ArrowLeft': 'Left', 'ArrowRight': 'Right',
+  'Enter': 'Enter', 'Tab': 'Tab', 'Backspace': 'Backspace', 'Delete': 'Del', 'Insert': 'Ins',
+  'Home': 'Home', 'End': 'End', 'PageUp': 'PgUp', 'PageDown': 'PgDn' };
+let hkCandidate = '';
+document.getElementById('hkCap').addEventListener('keydown', e => {
+  e.preventDefault(); e.stopPropagation();
+  const k = e.key;
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(k)) {
+    document.getElementById('hkCap').value = '（已按住修饰键，再按一个普通键…）'; hkCandidate = ''; return;
+  }
+  let name;
+  if (/^[a-z]$/i.test(k)) name = k.toLowerCase();
+  else if (/^[0-9]$/.test(k)) name = k;
+  else if (/^F([1-9]|1[0-2])$/.test(k)) name = k;
+  else if (hkMap[k]) name = hkMap[k];
+  else if (/^[;',"./\\[\]\-=`]$/.test(k)) name = k;
+  else { document.getElementById('hkCap').value = '不支持该键，换一个试试'; hkCandidate = ''; return; }
+  let s = '';
+  if (e.ctrlKey) s += '^';
+  if (e.altKey) s += '!';
+  if (e.shiftKey) s += '+';
+  if (!e.ctrlKey && !e.altKey) {
+    document.getElementById('hkCap').value = '请至少包含 Ctrl 或 Alt（避免与打字冲突）';
+    hkCandidate = ''; return;
+  }
+  hkCandidate = s + name;
+  document.getElementById('hkCap').value = prettyHk(hkCandidate) + '（' + hkCandidate + '）';
+});
+document.getElementById('btnHk').addEventListener('click', () => {
+  if (!hkCandidate) { toast('先在输入框中按下想要的热键组合'); return; }
+  cfg.hotkey = hkCandidate;
+  save();
+  document.getElementById('hkCur').textContent = prettyHk(hkCandidate);
+  toast('快捷键已应用：' + prettyHk(hkCandidate));
+  hkCandidate = '';
+  document.getElementById('hkCap').value = '';
+});
+
+document.getElementById('tgTop').addEventListener('change', e => {
+  cfg.onTop = e.target.checked ? 1 : 0;
+  save();
+  toast(cfg.onTop ? '窗口置顶：开' : '窗口置顶：关');
+});
+document.getElementById('tgBlur').addEventListener('change', e => {
+  cfg.blur = e.target.checked ? 1 : 0;
+  save();
+  toast(cfg.blur ? '失焦自动隐藏：开' : '失焦自动隐藏：关');
+});
+
+document.getElementById('btnExport2').addEventListener('click', () => sendCmd('export'));
+document.getElementById('btnImport2').addEventListener('click', () => sendCmd('import-request'));
+
+document.getElementById('tgBm').addEventListener('change', e => {
+  cfg.bmSync = Object.assign({ includeOther: 0, urls: [] }, cfg.bmSync || {});
+  cfg.bmSync.enabled = e.target.checked ? 1 : 0;
+  save();
+  toast(e.target.checked ? '书签自动同步：开' : '书签自动同步：关');
+});
+document.getElementById('tgBmOther').addEventListener('change', e => {
+  cfg.bmSync = Object.assign({ enabled: 1, urls: [] }, cfg.bmSync || {});
+  cfg.bmSync.includeOther = e.target.checked ? 1 : 0;
+  save();
+  sendCmd('sync-now');   // 切换范围后立刻按新范围同步一次
+  toast(e.target.checked ? '已包含“其他书签”' : '仅同步收藏夹栏');
+});
+document.getElementById('btnBmSync').addEventListener('click', () => {
+  const btn = document.getElementById('btnBmSync');
+  btn.disabled = true; btn.textContent = '同步中…';
+  sendCmd('sync-now');
+});
+function bmSyncDone() {
+  const btn = document.getElementById('btnBmSync');
+  btn.disabled = false; btn.textContent = '立即同步';
+  renderBmStatus();
+}
+
+document.getElementById('btnSettings').addEventListener('click', () => openSettings(false));
+document.getElementById('btnSetClose').addEventListener('click', closeSettings);
+document.getElementById('overlay2').addEventListener('click', e => {
+  if (e.target.id === 'overlay2') closeSettings();
+});
+document.getElementById('btnAdd').addEventListener('click', () => openEditor(null, null));
+
+/* ================= 搜索 / 快捷键 ================= */
+const search = document.getElementById('search');
+search.addEventListener('input', render);
+document.addEventListener('keydown', e => {
+  const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  const anyOverlay = document.querySelector('.overlay.open');
+  if (e.key === '/' && !inField && !anyOverlay) { e.preventDefault(); search.focus(); search.select(); }
+  if (e.key === 'Escape') {
+    if (anyOverlay) { closeEditor(); closeSettings(); }
+    else if (inField && search.value) { search.value = ''; render(); }
+    else if (!inField) sendCmd('hide');
+  }
+});
+
+/* 启动：向宿主要求数据 */
+sendCmd('load');
+</script>
+</body>
+</html>

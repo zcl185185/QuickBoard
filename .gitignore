@@ -1,0 +1,24 @@
+# 构建输出
+[Bb]in/
+[Oo]bj/
+[Dd]ist/
+publish/
+
+# Visual Studio / IDE 用户文件
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 本地工具数据
+.zcode/
+
+# 日志与测试结果
+*.log
+TestResults/
+
+# 操作系统文件
+Thumbs.db
+.DS_Store
