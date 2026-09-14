@@ -1,5 +1,7 @@
 # QuickBoard 速查板
 
+![速查板主界面](screenshots/main.png)
+
 基于 **.NET 8 (WPF + WebView2)** 的 Windows 桌面速查板工具：以卡片面板集中管理常用网址与书签，支持关键词即时搜索和浏览器书签同步，界面跟随系统自动切换明暗主题。
 
 ## 功能特性
